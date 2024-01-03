@@ -51,7 +51,7 @@ fn create_ppm() {
 
             match file.flush() {
                 Ok(_f) => _f,
-                Err(e) => panic!("failed to flush file: {}", e),
+                Err(e) => panic!("failed to flush file buffer: {}", e),
             }
         }
     }

@@ -66,12 +66,42 @@ impl Vec3 {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
+    /// Calculates the dot product of two vectors.
+    ///
+    /// # Arguments
+    ///
+    /// * `other`: Another `Vec3` instance
+    ///
+    /// # Returns
+    ///
+    /// The dot product (f64).
+    pub fn dot(&self, other: &Self) -> f64 {
+        self.x * other.x + self.y * other.y + self.z * other.z
+    }
+
+    /// Calculates the cross product of two vectors.
+    ///
+    /// # Arguments
+    ///
+    /// * `other`: Another `Vec3` instance
+    ///
+    /// # Returns
+    ///
+    /// The cross product (`Vec3`).
+    pub fn cross(&self, other: &Self) -> Self {
+        Vec3 {
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
+        }
+    }
+
     /// Normalizes the vector.
     ///
     /// # Returns
     ///
     /// A new `Vec3` instance with the same direction as the original vector but with a length of 1.
-    pub fn normalize(&self) -> Self {
+    pub fn unit_vector(&self) -> Self {
         let magnitude = self.magnitude();
         Vec3 {
             x: self.x / magnitude,
@@ -79,6 +109,20 @@ impl Vec3 {
             z: self.z / magnitude,
         }
     }
+}
+
+/// Calculates the dot product of two vectors. (Static Version)
+///
+/// # Arguments
+///
+/// * `v1: `Vec3` instance
+/// * `v2`: Another `Vec3` instance
+///
+/// # Returns
+///
+/// The dot product (f64).
+pub fn dot(v1: &Vec3, v2: &Vec3) -> f64 {
+    v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
 }
 
 impl fmt::Display for Vec3 {

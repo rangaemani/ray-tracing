@@ -55,17 +55,4 @@ impl Ray {
     pub fn at(&self, t: f64) -> Point3 {
         return self.origin + t * self.direction;
     }
-
-    /// Returns a new `Ray` with the direction vector normalized.
-    ///
-    /// # Returns
-    ///
-    /// A new `Ray` instance with the direction vector normalized.
-    pub fn unit_vector(&self) -> Ray {
-        let direction = self.direction.normalize();
-        Ray {
-            origin: self.origin,
-            direction,
-        }
-    }
 }

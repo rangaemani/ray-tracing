@@ -2,6 +2,7 @@ use vector::{Point3, Vec3};
 
 use crate::color::{write_color, Color};
 use crate::ray::Ray;
+use crate::vector::dot;
 use std::fs::File;
 use std::io::prelude::*;
 
@@ -30,12 +31,12 @@ fn main() {
     let pixel_origin = viewport_origin + 0.5 * pixel_deltas.0 + pixel_deltas.1;
 
     // render logic
-    render(pixel_deltas, pixel_origin, camera_center);
+    render(pixel_deltas, pixel_origin, camera_center, image_dimensions);
 }
 
 fn set_image_configuration() -> (usize, usize) {
-    let aspect_ratio = 3.0 / 2.0;
-    let image_width = 400;
+    let aspect_ratio = 16.0 / 9.0;
+    let image_width = 1920;
     let image_height: usize = (image_width as f32 / aspect_ratio) as usize;
     let image_height = if image_height < 1 { 1 } else { image_height };
     (image_width, image_height)
@@ -67,23 +68,105 @@ fn set_vectors(
 }
 
 fn get_ray_color(ray: &Ray) -> Color {
-    ray.unit_vector();
-    let offset = 0.5 * (ray.direction().y() / 2.0 + 1.0);
-    return (1.0 - offset) * Color::new(1.0, 1.0, 1.0) + offset * Color::new(0.5, 0.7, 1.0);
+    if detect_sphere_intersection(Point3::new(0.0, 0.0, -1.0), 0.5, ray) {
+        return Color::new(1.0, 0.0, 0.0);
+    }
+    // normalize ray direction
+    let unit_direction = ray.direction().unit_vector();
+    let blend_factor = 0.5 * (unit_direction.y() + 1.0); // interpolates value between two colors. in this case, blue & white
+    return (1.0 - blend_factor) * Color::new(1.0, 1.0, 1.0) // standard lerp
+        + blend_factor * Color::new(0.5, 0.7, 1.0);
+}
+
+/// Determines whether a ray intersects a sphere.
+///
+/// This function implements the sphere intersection test in ray tracing.
+/// Given a ray and a sphere (defined by its center and radius), it computes
+/// whether the ray intersects the sphere.
+///
+/// The intersection test is based on solving the quadratic equation derived from
+/// the geometric relationship between the ray and the sphere. The equation is:
+///
+/// `(ray.origin() - center)^2 = radius^2`
+///
+/// Expanding and rearranging terms gives the quadratic equation:
+///
+/// `a*t^2 + b*t + c = 0`
+///
+/// where:
+/// - `a` is the square of the length of the ray direction vector,
+/// - `b` is twice the dot product of the ray direction vector and the vector from the ray origin to the sphere center,
+/// - `c` is the square of the distance from the ray origin to the sphere center minus the square of the sphere radius.
+///
+/// The roots of this equation represent the distances from the ray origin to the intersection points.
+/// If the discriminant `b^2 - 4ac` is greater than or equal to zero, the ray intersects the sphere.
+///
+/// # Arguments
+///
+/// * `center` - The center point of the sphere.
+/// * `radius` - The radius of the sphere.
+/// * `ray` - The ray to check for intersection with the sphere.
+///
+/// # Returns
+///
+/// `true` if the ray intersects the sphere, `false` otherwise.
+/// Determines whether a ray intersects a sphere.
+///
+/// This function implements the sphere intersection test in ray tracing.
+/// Given a ray and a sphere (defined by its center and radius), it computes
+/// whether the ray intersects the sphere.
+///
+/// The intersection test is based on solving the quadratic equation derived from
+/// the geometric relationship between the ray and the sphere. The equation is:
+///
+/// `(ray.origin() - center)^2 = radius^2`
+///
+/// Expanding and rearranging terms gives the quadratic equation:
+///
+/// `a*t^2 + b*t + c = 0`
+///
+/// where:
+/// - `a` is the square of the length of the ray direction vector,
+/// - `b` is twice the dot product of the ray direction vector and the vector from the ray origin to the sphere center,
+/// - `c` is the square of the distance from the ray origin to the sphere center minus the square of the sphere radius.
+///
+/// The roots of this equation represent the distances from the ray origin to the intersection points.
+/// If the discriminant `b^2 - 4ac` is greater than or equal to zero, the ray intersects the sphere.
+///
+/// # Arguments
+///
+/// * `center` - The center point of the sphere.
+/// * `radius` - The radius of the sphere.
+/// * `ray` - The ray to check for intersection with the sphere.
+///
+/// # Returns
+///
+/// `true` if the ray intersects the sphere, `false` otherwise.
+fn detect_sphere_intersection(center: Point3, radius: f64, ray: &Ray) -> bool {
+    let origin_offset: Vec3 = ray.origin() - center;
+    let a = dot(&ray.direction(), &ray.direction());
+    let b = 2.0 * dot(&origin_offset, &ray.direction());
+    let c = dot(&origin_offset, &origin_offset) - radius * radius;
+    let discriminant = b * b - 4.0 * a * c;
+    return discriminant >= 0.0;
 }
 
 // creates a 256 x 256 ppm file
-fn render(pixel_deltas: (Vec3, Vec3), pixel_origin: Vec3, camera_center: Vec3) {
+fn render(
+    pixel_deltas: (Vec3, Vec3),
+    pixel_origin: Vec3,
+    camera_center: Vec3,
+    image_dimensions: (usize, usize),
+) {
     let mut file = match File::create("image.ppm") {
         Ok(file) => file,
         Err(e) => panic!("could not create file: {}", e),
     };
     // image dimensions
-    const IMAGE_WIDTH: u16 = 512;
-    const IMAGE_HEIGHT: u16 = 512;
+    let (image_width, image_height) = image_dimensions;
 
     // data formatting
-    let ppm_buffer = format!("P3\n{} {}\n255\n", IMAGE_WIDTH, IMAGE_HEIGHT);
+    let ppm_buffer = format!("P3\n{} {}\n255\n", image_width, image_height);
 
     // image logic
     match file.write_all(ppm_buffer.as_bytes()) {
@@ -96,9 +179,9 @@ fn render(pixel_deltas: (Vec3, Vec3), pixel_origin: Vec3, camera_center: Vec3) {
         Err(e) => panic!("failed to flush file: {}", e),
     }
     // iteratively create gradient
-    for j in 0..IMAGE_HEIGHT {
-        println!("\rscanlines remaining: {} ", IMAGE_HEIGHT - j);
-        for i in 0..IMAGE_WIDTH {
+    for j in 0..image_height {
+        println!("\rscanlines remaining: {} ", image_height - j);
+        for i in 0..image_width {
             let pixel_center =
                 pixel_origin + (i as f64 * pixel_deltas.0) + (j as f64 * pixel_deltas.1);
             let ray_direction = pixel_center - camera_center;

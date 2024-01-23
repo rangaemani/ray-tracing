@@ -96,21 +96,20 @@ impl Vec3 {
         }
     }
 
-    /// Normalizes the vector.
+    /// Normalizes the vector using fast inverse square r.
     ///
     /// # Returns
     ///
     /// A new `Vec3` instance with the same direction as the original vector but with a length of 1.
-    pub fn unit_vector(&self) -> Self {
-        let magnitude = self.magnitude();
+    pub fn normalize(&self) -> Self {
+        let len = self.length();
         Vec3 {
-            x: self.x / magnitude,
-            y: self.y / magnitude,
-            z: self.z / magnitude,
+            x: self.x / len,
+            y: self.y / len,
+            z: self.z / len,
         }
     }
 }
-
 /// Calculates the dot product of two vectors. (Static Version)
 ///
 /// # Arguments

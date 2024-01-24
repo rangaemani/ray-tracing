@@ -1,6 +1,7 @@
 use std::ops::Neg;
 use std::sync::Arc;
 
+use crate::interval::Interval;
 use crate::ray::Ray;
 use crate::vector::{dot, Point3, Vec3};
 
@@ -79,16 +80,10 @@ impl HitRecord {
 /// Defines behavior for traceable objects.
 pub trait Traceable {
     /// Determines if a ray intersects the object and records intersection data.
-    fn hit(
-        &self,
-        ray: &Ray,
-        ray_parameter_min: f64,
-        ray_parameter_max: f64,
-        record: &mut HitRecord,
-    ) -> bool;
+    fn hit(&self, ray: &Ray, ray_parameter: Interval, record: &mut HitRecord) -> bool;
 }
 
-/// Holds a collection of traceable objects.
+/// Holds a collection of ray traceable objects.
 pub struct Traceables {
     traceable_objects: Vec<Arc<dyn Traceable>>,
 }
@@ -114,19 +109,17 @@ impl Traceables {
 
 impl Traceable for Traceables {
     /// Determines if any object in the collection intersects with the ray.
-    fn hit(
-        &self,
-        ray: &Ray,
-        ray_parameter_min: f64,
-        ray_parameter_max: f64,
-        record: &mut HitRecord,
-    ) -> bool {
+    fn hit(&self, ray: &Ray, ray_parameter: Interval, record: &mut HitRecord) -> bool {
         let mut temp_record = HitRecord::new();
-        let mut closest_parameter = ray_parameter_max;
+        let mut closest_parameter = ray_parameter.max();
         let mut has_hit: bool = false;
 
         for object in &self.traceable_objects {
-            if object.hit(ray, ray_parameter_min, closest_parameter, &mut temp_record) {
+            if object.hit(
+                ray,
+                Interval::new(ray_parameter.min(), closest_parameter),
+                &mut temp_record,
+            ) {
                 has_hit = true;
                 closest_parameter = temp_record.parameter();
                 *record = temp_record.clone();

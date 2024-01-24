@@ -11,7 +11,7 @@ pub type Point3 = Vec3;
 /// * `x`: x-coordinate (f64)
 /// * `y`: y-coordinate (f64)
 /// * `z`: z-coordinate (f64)
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Vec3 {
     x: f64,
     y: f64,

@@ -53,30 +53,29 @@ impl Traceable for Sphere {
     /// Returns `true` if the ray hits the sphere within the interval, `false` otherwise.
     fn hit(&self, ray: &Ray, ray_parameter: Interval, record: &mut HitRecord) -> bool {
         let origin_vector: Vec3 = ray.origin() - self.center;
-        let a = dot(&ray.direction(), &ray.direction());
+        let a = ray.direction().magnitude();
         let half_b = dot(&origin_vector, &ray.direction());
         let c = (origin_vector.dot(&origin_vector)) - (self.radius * self.radius);
 
         let discriminant = (half_b * half_b) - (a * c);
         if discriminant < 0.0 {
             return false;
-        } else {
-            let discriminant_root = discriminant.sqrt();
-
-            // Find the nearest root that lies in the acceptable range.
-            let mut root = (-half_b - discriminant_root) / a;
-            if !ray_parameter.surrounds(root) {
-                root = (-half_b + discriminant_root) / a;
-                if !ray_parameter.surrounds(root) {
-                    return false;
-                }
-            }
-
-            record.set_parameter(root);
-            record.set_point(ray.at(record.parameter()));
-            let outward_normal: Vec3 = (record.point() - self.center) / self.radius;
-            record.set_normal_face(ray, &outward_normal);
-            return true;
         }
+        let discriminant_root = discriminant.sqrt();
+
+        // Find the nearest root that lies in the acceptable range.
+        let mut root = (-half_b - discriminant_root) / a;
+        if !ray_parameter.surrounds(root) {
+            root = (-half_b + discriminant_root) / a;
+            if !ray_parameter.surrounds(root) {
+                return false;
+            }
+        }
+
+        record.set_parameter(root);
+        record.set_point(ray.at(record.parameter()));
+        let outward_normal: Vec3 = (record.point() - self.center) / self.radius;
+        record.set_normal_face(ray, &outward_normal);
+        return true;
     }
 }

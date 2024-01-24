@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::vector::*;
 
 /// Represents a ray in 3D space.
@@ -5,9 +7,20 @@ use crate::vector::*;
 /// A ray is defined by an origin point `A` and a direction vector `b`. The position of any point `P` along the ray can be computed using the formula `P(t) = A + t*b`, where `t` is a real number.
 ///
 /// Positive values of `t` correspond to points in front of the origin `A`, while negative values correspond to points behind the origin.
+#[derive(Clone, Copy)]
 pub struct Ray {
     origin: Point3,  // origin coordinates
     direction: Vec3, // direction vector
+}
+
+impl Display for Ray {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Ray(origin: {}, direction: {})",
+            self.origin, self.direction
+        )
+    }
 }
 
 impl Ray {

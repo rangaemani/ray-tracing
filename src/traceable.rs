@@ -14,6 +14,16 @@ pub struct HitRecord {
     ray_faces_outside: bool,
 }
 
+impl std::fmt::Display for HitRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "HitRecord {{ point: {:?}, normal: {:?}, parameter: {}, ray_faces_outside: {} }}",
+            self.point, self.normal, self.parameter, self.ray_faces_outside
+        )
+    }
+}
+
 impl HitRecord {
     /// Creates a new `HitRecord` with default values.
     pub fn new() -> Self {

@@ -97,14 +97,14 @@ impl Camera {
         let viewport_u_vector = Vec3::new(viewport_width, 0.0, 0.0);
         let viewport_v_vector = Vec3::new(0.0, -viewport_height, 0.0);
 
-        let pixel_delta_u = viewport_u_vector / self.image_width as f64;
-        let pixel_delta_v = viewport_v_vector / self.image_height as f64;
+        self.pixel_delta_u = viewport_u_vector / self.image_width as f64;
+        self.pixel_delta_v = viewport_v_vector / self.image_height as f64;
 
         let viewport_origin = self.center
             - Vec3::new(0.0, 0.0, focal_length)
             - viewport_u_vector / 2.0
             - viewport_v_vector / 2.0;
-        self.pixel_origin = viewport_origin + 0.5 * pixel_delta_u + 0.5 * pixel_delta_v;
+        self.pixel_origin = viewport_origin + 0.5 * self.pixel_delta_u + 0.5 * self.pixel_delta_v;
     }
 
     /// Renders the scene described by `world` to a PPM file.

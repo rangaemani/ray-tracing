@@ -3,6 +3,8 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
+use crate::rt_math::{random_number, random_number_in_range};
+
 pub type Point3 = Vec3;
 
 /// `Vec3` represents a three-dimensional vector with x, y, and z as its coordinates.
@@ -108,6 +110,61 @@ impl Vec3 {
             y: self.y / len,
             z: self.z / len,
         }
+    }
+
+    /// Generates a random vector within a unit sphere.
+    ///
+    /// Repeatedly generates a random vector within the range [-1.0, 1.0] for each
+    /// coordinate until it finds one that lies inside the unit sphere (magnitude < 1).
+    ///
+    /// # Returns
+    ///
+    /// A `Vec3` that represents a random normalized vector within the unit sphere.
+    pub fn random_unit_sphere_vector() -> Vec3 {
+        loop {
+            let vector: Vec3 = Vec3::random_in_range(-1.0, 1.0);
+            if vector.magnitude() < 1.0 {
+                return vector.normalize();
+            }
+        }
+    }
+
+    /// Generates a random vector that lies on the hemisphere surface defined by the given normal.
+    ///
+    /// This function creates a random vector that, when reflected across a diffuse (matte) surface,
+    /// has an equal probability of bouncing in any direction above the surface tangent plane
+    /// defined by `normal`. The function applies the rejection method of generating random vectors
+    /// inside the unit sphere and normalizes them, ensuring that the resultant vector is on the
+    /// hemisphere surface corresponding to the provided normal vector.
+    ///
+    /// # Parameters
+    ///
+    /// * `normal`: A reference to a `Vec3` representing the normal vector at the point of reflection on the surface.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec3` that represents a random vector on the hemisphere defined by the `normal`. If the dot product
+    /// of the generated vector and the `normal` is negative (indicating that the vector is on the opposite hemisphere),
+    /// the vector is inverted to ensure it is in the correct hemisphere with respect to the normal vector.
+    pub fn random_surface_hemisphere_vector(normal: &Vec3) -> Vec3 {
+        let random_vector: Vec3 = Self::random_unit_sphere_vector();
+        if dot(&random_vector, normal) > 0.0 {
+            return random_vector;
+        } else {
+            return -random_vector;
+        }
+    }
+
+    pub fn random() -> Vec3 {
+        return Vec3::new(random_number(), random_number(), random_number());
+    }
+
+    pub fn random_in_range(min: f64, max: f64) -> Vec3 {
+        return Vec3::new(
+            random_number_in_range(min, max),
+            random_number_in_range(min, max),
+            random_number_in_range(min, max),
+        );
     }
 }
 /// Calculates the dot product of two vectors. (Static Version)

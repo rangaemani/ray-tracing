@@ -31,7 +31,9 @@ fn main() {
     world.add(Arc::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
 
     let mut camera = Camera::new();
-    camera.aspect_ratio = 3.0 / 2.0;
-    camera.pixel_samples = 400;
+    camera.aspect_ratio = 16.0 / 9.0;
+    camera.image_width = 800;
+    camera.pixel_samples = 250;
+    camera.max_depth = 50;
     camera.render(world);
 }

@@ -4,7 +4,7 @@ use std::io::Write;
 
 use rand::random;
 
-use crate::color::*;
+use crate::color::{self, *};
 use crate::interval::Interval;
 use crate::ray::Ray;
 use crate::rt_math::random_number;
@@ -19,6 +19,10 @@ pub struct Camera {
     pub image_dimensions: (usize, usize),
     /// The width of the image in pixels.
     pub image_width: usize,
+    // How many anti-aliasing samples
+    pub pixel_samples: usize,
+    // Maximum number of ray bounces
+    pub max_depth: usize,
     /// The height of the image in pixels.
     image_height: usize,
     /// The camera's position in space.
@@ -29,23 +33,22 @@ pub struct Camera {
     pixel_delta_u: Vec3,
     /// Displacement vector to the next pixel down.
     pixel_delta_v: Vec3,
-
-    pub pixel_samples: usize,
 }
 
 impl Camera {
     /// Creates a new camera instance with default properties.
     pub fn new() -> Self {
         Camera {
-            aspect_ratio: 0.0,
-            image_width: 0,
+            aspect_ratio: 1.0,
+            image_width: 100,
             image_height: 0,
             image_dimensions: (0, 0),
             center: Point3::new(0.0, 0.0, 0.0),
             pixel_origin: Point3::new(0.0, 0.0, 0.0),
             pixel_delta_u: Vec3::new(0.0, 0.0, 0.0),
             pixel_delta_v: Vec3::new(0.0, 0.0, 0.0),
-            pixel_samples: 0,
+            pixel_samples: 10,
+            max_depth: 10,
         }
     }
 
@@ -71,11 +74,16 @@ impl Camera {
     /// let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 1.0, 0.0));
     /// let color = camera.get_ray_color(&ray, &world);
     /// ```
-    fn get_ray_color(ray: &Ray, world: &Traceables) -> Color {
+    fn get_ray_color(ray: &Ray, depth: usize, world: &Traceables) -> Color {
         let mut record: HitRecord = HitRecord::new();
+        if depth <= 0 {
+            return Color::new(0.0, 0.0, 0.0);
+        }
         // If a ray intersects with the sphere in the scene, return a red color.
-        if world.hit(ray, Interval::new(0.0, f64::INFINITY), &mut record) {
-            return 0.5 * (record.normal() + Color::new(1.0, 1.0, 1.0));
+        if world.hit(ray, Interval::new(0.1, f64::INFINITY), &mut record) {
+            let direction: Vec3 = Vec3::random_surface_hemisphere_vector(&record.normal());
+            return 0.5
+                * Self::get_ray_color(&Ray::new(record.point(), direction), depth - 1, world);
         } else {
             // Normalize the ray's direction vector.
             let unit_direction = ray.direction().normalize();
@@ -107,17 +115,7 @@ impl Camera {
 
     /// Initializes the camera properties based on the provided command-line arguments.
     fn initialize(&mut self) {
-        let args: Vec<String> = env::args().collect();
-
-        self.aspect_ratio = 16.0 / 9.0;
-        self.image_width = args.get(1).map_or(400, |w| w.parse().unwrap_or(400));
-        self.image_height = args.get(2).map_or(
-            (self.image_width as f64 / self.aspect_ratio) as usize,
-            |h| {
-                h.parse()
-                    .unwrap_or((self.image_width as f64 / self.aspect_ratio) as usize)
-            },
-        );
+        self.image_height = (self.image_width as f64 / self.aspect_ratio) as usize;
         self.image_height = self.image_height.max(1);
         self.image_dimensions = (self.image_width, self.image_height);
         self.image_dimensions = (self.image_width, self.image_height);
@@ -158,12 +156,12 @@ impl Camera {
             .expect("Failed to write PPM header to file");
 
         for j in 0..self.image_height {
-            let mut pixel_color = Color::new(0.0, 0.0, 0.0);
             println!("\rscanlines remaining: {} ", self.image_height - j);
             for i in 0..self.image_width {
+                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
                 for _sample in 0..self.pixel_samples {
                     let ray: Ray = self.get_ray(i, j);
-                    pixel_color += Self::get_ray_color(&ray, &world);
+                    pixel_color += Self::get_ray_color(&ray, self.max_depth, &world);
                 }
                 // Convert the pixel color to a string in PPM format.
                 let rgb_buffer = write_color(pixel_color, self.pixel_samples);

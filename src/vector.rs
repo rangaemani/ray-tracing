@@ -166,6 +166,15 @@ impl Vec3 {
             random_number_in_range(min, max),
         );
     }
+    // returns true if vec3 is mostly close to (0, 0, 0)
+    pub fn approx_zero(&self) -> bool {
+        let range = 1e-8;
+        return self.x().abs() < range && self.y().abs() < range && self.z.abs() < range;
+    }
+
+    pub fn reflect(vector: &Vec3, normal: &Vec3) -> Vec3 {
+        return vector.clone() - 2.0 * dot(vector, normal) * normal.clone();
+    }
 }
 /// Calculates the dot product of two vectors. (Static Version)
 ///

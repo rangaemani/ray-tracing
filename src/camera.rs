@@ -6,6 +6,7 @@ use rand::random;
 
 use crate::color::{self, *};
 use crate::interval::Interval;
+use crate::material::*;
 use crate::ray::Ray;
 use crate::rt_math::random_number;
 use crate::traceable::*;
@@ -79,14 +80,21 @@ impl Camera {
         if depth <= 0 {
             return Color::new(0.0, 0.0, 0.0);
         }
-        // If a ray intersects with the sphere in the scene, return a red color.
+        // If a ray intersects with the sphere in the scene, return a color.
         if world.hit(ray, Interval::new(0.1, f64::INFINITY), &mut record) {
-            let direction: Vec3 = Vec3::random_surface_hemisphere_vector(&record.normal());
-            return 0.5
-                * Self::get_ray_color(&Ray::new(record.point(), direction), depth - 1, world);
+            let mut scattered_ray: Ray =
+                Ray::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0));
+            let mut attenuation: Color = Color::new(0.0, 0.0, 0.0);
+            if record
+                .material()
+                .scatter(ray, &record, &mut attenuation, &mut scattered_ray)
+            {
+                return attenuation * Self::get_ray_color(&scattered_ray, depth - 1, world);
+            }
+            return Color::new(0.0, 0.0, 0.0);
         } else {
             // Normalize the ray's direction vector.
-            let unit_direction = ray.direction().normalize();
+            let unit_direction: Vec3 = ray.direction().normalize();
             // Calculate blending factor for color interpolation.
             let blend_factor = 0.5 * (unit_direction.y() + 1.0);
             // Linearly interpolate between white and light blue colors based on the blend factor.

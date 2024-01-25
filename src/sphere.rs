@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use crate::interval::Interval;
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::traceable::{HitRecord, Traceable};
 use crate::vector::{dot, Point3, Vec3};
@@ -7,6 +10,7 @@ use crate::vector::{dot, Point3, Vec3};
 pub struct Sphere {
     center: Point3,
     radius: f64,
+    material: Arc<dyn Material>,
 }
 
 impl Sphere {
@@ -20,8 +24,12 @@ impl Sphere {
     /// # Returns
     ///
     /// Returns a `Sphere` instance.
-    pub fn new(center: Point3, radius: f64) -> Sphere {
-        return Sphere { center, radius };
+    pub fn new(center: Point3, radius: f64, material: Arc<dyn Material>) -> Sphere {
+        return Sphere {
+            center,
+            radius,
+            material,
+        };
     }
 
     /// Returns the radius of the sphere.
@@ -76,6 +84,7 @@ impl Traceable for Sphere {
         record.set_point(ray.at(record.parameter()));
         let outward_normal: Vec3 = (record.point() - self.center) / self.radius;
         record.set_normal_face(ray, &outward_normal);
+        record.set_material(self.material.clone());
         return true;
     }
 }

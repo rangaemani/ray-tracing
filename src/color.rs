@@ -2,6 +2,10 @@ use crate::{interval::Interval, vector::Vec3};
 
 pub type Color = Vec3;
 
+fn linear_to_gamma(linear_component: f64) -> f64 {
+    return linear_component.sqrt();
+}
+
 /// The function `write_color` takes a `Color` object and returns a formatted string representing the
 /// RGB values of the color.
 ///
@@ -22,6 +26,10 @@ pub fn write_color(pixel_color: Color, pixel_samples: usize) -> String {
     r *= scale;
     g *= scale;
     b *= scale;
+
+    r = linear_to_gamma(r);
+    g = linear_to_gamma(g);
+    b = linear_to_gamma(b);
 
     let intensity: Interval = Interval::new(0.000, 0.999);
     format!(

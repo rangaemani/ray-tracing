@@ -1,15 +1,18 @@
 use std::ops::Neg;
 use std::sync::Arc;
 
+use crate::color::Color;
 use crate::interval::Interval;
+use crate::material::{self, Lambertian, Material};
 use crate::ray::Ray;
 use crate::vector::{dot, Point3, Vec3};
 
 /// Stores the intersection data when a ray hits an object.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct HitRecord {
     point: Point3,
     normal: Vec3,
+    material: Arc<dyn Material>,
     parameter: f64,
     ray_faces_outside: bool,
 }
@@ -30,6 +33,7 @@ impl HitRecord {
         HitRecord {
             point: Point3::new(0.0, 0.0, 0.0),
             normal: Vec3::new(0.0, 0.0, 0.0),
+            material: Arc::new(Lambertian::new(Color::new(0.0, 0.0, 0.0))),
             parameter: 0.0,
             ray_faces_outside: true,
         }
@@ -43,6 +47,10 @@ impl HitRecord {
     /// Returns the normal at the intersection.
     pub fn normal(&self) -> Vec3 {
         self.normal
+    }
+    /// Returns material of object being traced
+    pub fn material(&self) -> Arc<dyn Material> {
+        self.material.clone()
     }
 
     /// Returns the parameter `t` at which the intersection occurs.
@@ -63,6 +71,10 @@ impl HitRecord {
     /// Sets the normal at the intersection.
     pub fn set_normal(&mut self, normal: Vec3) {
         self.normal = normal;
+    }
+
+    pub fn set_material(&mut self, material: Arc<dyn Material>) {
+        self.material = material;
     }
 
     /// Sets the parameter `t` at which the intersection occurs.

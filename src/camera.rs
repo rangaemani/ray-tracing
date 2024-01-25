@@ -2,9 +2,12 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 
+use rand::random;
+
 use crate::color::*;
 use crate::interval::Interval;
 use crate::ray::Ray;
+use crate::rt_math::random_number;
 use crate::traceable::*;
 use crate::vector::{Point3, Vec3};
 
@@ -26,6 +29,8 @@ pub struct Camera {
     pixel_delta_u: Vec3,
     /// Displacement vector to the next pixel down.
     pixel_delta_v: Vec3,
+
+    pub pixel_samples: usize,
 }
 
 impl Camera {
@@ -40,6 +45,7 @@ impl Camera {
             pixel_origin: Point3::new(0.0, 0.0, 0.0),
             pixel_delta_u: Vec3::new(0.0, 0.0, 0.0),
             pixel_delta_v: Vec3::new(0.0, 0.0, 0.0),
+            pixel_samples: 0,
         }
     }
 
@@ -81,12 +87,39 @@ impl Camera {
         }
     }
 
+    fn get_ray(&self, i: usize, j: usize) -> Ray {
+        // gets randomly sampled ray for pixel at (i, j)
+        let pixel_center =
+            self.pixel_origin + (i as f64 * self.pixel_delta_u) + (j as f64 * self.pixel_delta_v);
+        let pixel_sample = pixel_center + self.pixel_sample_square();
+
+        let ray_origin = self.center;
+        let ray_direction = pixel_sample - ray_origin;
+        return Ray::new(ray_origin, ray_direction);
+    }
+
+    fn pixel_sample_square(&self) -> Vec3 {
+        // returns random point in square surrounding origin pixel
+        let px = -0.5 + random_number();
+        let py = -0.5 + random_number();
+        return (px * self.pixel_delta_u) + (py * self.pixel_delta_v);
+    }
+
     /// Initializes the camera properties based on the provided command-line arguments.
     fn initialize(&mut self) {
-        self.aspect_ratio = 16.0 / 9.0; // Update this to match the aspect ratio from the guide if needed
-        self.image_width = 400; // Set this to the desired width
-        self.image_height = (self.image_width as f64 / self.aspect_ratio) as usize;
-        self.image_height = self.image_height.max(1); // Ensure at least 1 pixel height
+        let args: Vec<String> = env::args().collect();
+
+        self.aspect_ratio = 16.0 / 9.0;
+        self.image_width = args.get(1).map_or(400, |w| w.parse().unwrap_or(400));
+        self.image_height = args.get(2).map_or(
+            (self.image_width as f64 / self.aspect_ratio) as usize,
+            |h| {
+                h.parse()
+                    .unwrap_or((self.image_width as f64 / self.aspect_ratio) as usize)
+            },
+        );
+        self.image_height = self.image_height.max(1);
+        self.image_dimensions = (self.image_width, self.image_height);
         self.image_dimensions = (self.image_width, self.image_height);
         self.center = Point3::new(0.0, 0.0, 0.0);
 
@@ -125,18 +158,15 @@ impl Camera {
             .expect("Failed to write PPM header to file");
 
         for j in 0..self.image_height {
+            let mut pixel_color = Color::new(0.0, 0.0, 0.0);
             println!("\rscanlines remaining: {} ", self.image_height - j);
             for i in 0..self.image_width {
-                let pixel_center = self.pixel_origin
-                    + (i as f64 * self.pixel_delta_u)
-                    + (j as f64 * self.pixel_delta_v);
-                // Trace ray for each pixel
-                let ray_direction = pixel_center - self.center;
-                let ray: Ray = Ray::new(self.center, ray_direction);
-                let pixel_color = Self::get_ray_color(&ray, &world);
-
+                for _sample in 0..self.pixel_samples {
+                    let ray: Ray = self.get_ray(i, j);
+                    pixel_color += Self::get_ray_color(&ray, &world);
+                }
                 // Convert the pixel color to a string in PPM format.
-                let rgb_buffer = write_color(pixel_color);
+                let rgb_buffer = write_color(pixel_color, self.pixel_samples);
 
                 // Write the color data for the current pixel to the PPM file.
                 match file.write_all(rgb_buffer.as_bytes()) {

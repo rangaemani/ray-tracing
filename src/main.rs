@@ -32,6 +32,6 @@ fn main() {
 
     let mut camera = Camera::new();
     camera.aspect_ratio = 3.0 / 2.0;
-    camera.image_width = 400;
+    camera.pixel_samples = 400;
     camera.render(world);
 }

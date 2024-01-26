@@ -1,10 +1,11 @@
-use std::sync::Arc;
-
-use crate::interval::Interval;
 use crate::material::Material;
+use crate::materials::{self, *};
+use crate::math::interval::Interval;
 use crate::ray::Ray;
 use crate::traceable::{HitRecord, Traceable};
 use crate::vector::{dot, Point3, Vec3};
+use materials::{dielectric::Dielectric, lambert::Lambertian, metal::Metal};
+use std::sync::Arc;
 
 /// A geometric representation of a sphere with a center point and a radius.
 pub struct Sphere {
@@ -14,6 +15,13 @@ pub struct Sphere {
 }
 
 impl Sphere {
+    pub fn new() -> Self {
+        Sphere {
+            center: Vec3::new(),
+            radius: 0.0,
+            material: Arc::from(Lambertian::new()),
+        }
+    }
     /// Creates a new `Sphere` with a given `center` and `radius`.
     ///
     /// # Arguments
@@ -24,7 +32,7 @@ impl Sphere {
     /// # Returns
     ///
     /// Returns a `Sphere` instance.
-    pub fn new(center: Point3, radius: f64, material: Arc<dyn Material>) -> Sphere {
+    pub fn from(center: Point3, radius: f64, material: Arc<dyn Material>) -> Sphere {
         return Sphere {
             center,
             radius,

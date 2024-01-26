@@ -1,4 +1,6 @@
-use crate::{interval::Interval, vector::Vec3};
+use crate::math;
+use crate::Vec3;
+use math::interval::Interval;
 
 pub type Color = Vec3;
 

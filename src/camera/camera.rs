@@ -5,10 +5,9 @@ use std::io::Write;
 use rand::random;
 
 use crate::color::{self, *};
-use crate::interval::Interval;
-use crate::material::*;
+use crate::math::interval::Interval;
+use crate::math::rt_math::{degrees_to_radians, random_number};
 use crate::ray::Ray;
-use crate::rt_math::random_number;
 use crate::traceable::*;
 use crate::vector::{Point3, Vec3};
 
@@ -20,20 +19,32 @@ pub struct Camera {
     pub image_dimensions: (usize, usize),
     /// The width of the image in pixels.
     pub image_width: usize,
-    // How many anti-aliasing samples
+    /// How many anti-aliasing samples
     pub pixel_samples: usize,
-    // Maximum number of ray bounces
+    /// Maximum number of ray bounces
     pub max_depth: usize,
+    /// Vertical FOV
+    pub vfov: f64,
     /// The height of the image in pixels.
     image_height: usize,
     /// The camera's position in space.
     center: Point3,
+    /// Where camera is looking from
+    pub camera_origin: Point3,
+    /// What camera is looking at
+    pub camera_target: Point3,
+    /// Vector pointing up
+    pub up_vector: Vec3,
     /// The position of the pixel at coordinates (0,0) in space.
     pixel_origin: Point3,
     /// Displacement vector to the next pixel to the right.
     pixel_delta_u: Vec3,
     /// Displacement vector to the next pixel down.
     pixel_delta_v: Vec3,
+    /// Frame basis vectors
+    u: Vec3,
+    v: Vec3,
+    w: Vec3,
 }
 
 impl Camera {
@@ -44,12 +55,19 @@ impl Camera {
             image_width: 100,
             image_height: 0,
             image_dimensions: (0, 0),
-            center: Point3::new(0.0, 0.0, 0.0),
-            pixel_origin: Point3::new(0.0, 0.0, 0.0),
-            pixel_delta_u: Vec3::new(0.0, 0.0, 0.0),
-            pixel_delta_v: Vec3::new(0.0, 0.0, 0.0),
+            center: Point3::new(),
+            camera_origin: Point3::from(0.0, 0.0, -1.0),
+            camera_target: Point3::from(0.0, 0.0, 0.0),
+            up_vector: Vec3::from(0.0, 1.0, 0.0),
+            pixel_origin: Point3::new(),
+            pixel_delta_u: Vec3::new(),
+            pixel_delta_v: Vec3::new(),
             pixel_samples: 10,
             max_depth: 10,
+            vfov: 90.0,
+            u: Vec3::new(),
+            v: Vec3::new(),
+            w: Vec3::new(),
         }
     }
 
@@ -78,28 +96,27 @@ impl Camera {
     fn get_ray_color(ray: &Ray, depth: usize, world: &Traceables) -> Color {
         let mut record: HitRecord = HitRecord::new();
         if depth <= 0 {
-            return Color::new(0.0, 0.0, 0.0);
+            return Color::new();
         }
         // If a ray intersects with the sphere in the scene, return a color.
         if world.hit(ray, Interval::new(0.1, f64::INFINITY), &mut record) {
-            let mut scattered_ray: Ray =
-                Ray::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0));
-            let mut attenuation: Color = Color::new(0.0, 0.0, 0.0);
+            let mut scattered_ray: Ray = Ray::new();
+            let mut attenuation: Color = Color::new();
             if record
                 .material()
                 .scatter(ray, &record, &mut attenuation, &mut scattered_ray)
             {
                 return attenuation * Self::get_ray_color(&scattered_ray, depth - 1, world);
             }
-            return Color::new(0.0, 0.0, 0.0);
+            return Color::new();
         } else {
             // Normalize the ray's direction vector.
             let unit_direction: Vec3 = ray.direction().normalize();
             // Calculate blending factor for color interpolation.
             let blend_factor = 0.5 * (unit_direction.y() + 1.0);
             // Linearly interpolate between white and light blue colors based on the blend factor.
-            return (1.0 - blend_factor) * Color::new(1.0, 1.0, 1.0)
-                + blend_factor * Color::new(0.5, 0.7, 1.0);
+            return (1.0 - blend_factor) * Color::from(1.0, 1.0, 1.0)
+                + blend_factor * Color::from(0.5, 0.7, 1.0);
         }
     }
 
@@ -111,7 +128,7 @@ impl Camera {
 
         let ray_origin = self.center;
         let ray_direction = pixel_sample - ray_origin;
-        return Ray::new(ray_origin, ray_direction);
+        return Ray::from(ray_origin, ray_direction);
     }
 
     fn pixel_sample_square(&self) -> Vec3 {
@@ -125,22 +142,35 @@ impl Camera {
     fn initialize(&mut self) {
         self.image_height = (self.image_width as f64 / self.aspect_ratio) as usize;
         self.image_height = self.image_height.max(1);
-        self.image_dimensions = (self.image_width, self.image_height);
-        self.image_dimensions = (self.image_width, self.image_height);
-        self.center = Point3::new(0.0, 0.0, 0.0);
 
-        let focal_length = 1.0;
-        let viewport_height = 2.0;
+        self.center = self.camera_origin;
+
+        self.image_dimensions = (self.image_width, self.image_height);
+        self.image_dimensions = (self.image_width, self.image_height);
+        self.center = Point3::new();
+        // Calculate viewport dimension
+        let focal_length = (self.camera_origin - self.camera_target).length();
+        let theta: f64 = degrees_to_radians(self.vfov);
+        let height_component = f64::tan(theta / 2.0);
+        let viewport_height = 2.0 * height_component * focal_length;
         let viewport_width = viewport_height * self.aspect_ratio;
 
-        let viewport_u_vector = Vec3::new(viewport_width, 0.0, 0.0);
-        let viewport_v_vector = Vec3::new(0.0, -viewport_height, 0.0);
+        // Calculate basis vectors for camera coordinates
+        self.w = (self.camera_origin - self.camera_target).normalize();
+        self.v = Vec3::cross(&self.up_vector, &self.w);
+        self.u = Vec3::cross(&self.w, &self.u);
 
+        // Calculate horizontal & vertical viewport edge vectors
+        let viewport_u_vector = viewport_width * self.u;
+        let viewport_v_vector = viewport_height * -self.v;
+
+        // Calculate horizontal and vertical pixel delta vectors
         self.pixel_delta_u = viewport_u_vector / self.image_width as f64;
         self.pixel_delta_v = viewport_v_vector / self.image_height as f64;
 
+        // Calculate location of origin pixel [top left (0, 0)]
         let viewport_origin = self.center
-            - Vec3::new(0.0, 0.0, focal_length)
+            - (focal_length * self.w)
             - viewport_u_vector / 2.0
             - viewport_v_vector / 2.0;
         self.pixel_origin = viewport_origin + 0.5 * self.pixel_delta_u + 0.5 * self.pixel_delta_v;
@@ -163,10 +193,11 @@ impl Camera {
         writeln!(file, "P3\n{} {}\n255", self.image_width, self.image_height)
             .expect("Failed to write PPM header to file");
 
+        let total_scanlines = self.image_height;
+
         for j in 0..self.image_height {
-            println!("\rscanlines remaining: {} ", self.image_height - j);
             for i in 0..self.image_width {
-                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                let mut pixel_color = Color::new();
                 for _sample in 0..self.pixel_samples {
                     let ray: Ray = self.get_ray(i, j);
                     pixel_color += Self::get_ray_color(&ray, self.max_depth, &world);
@@ -185,6 +216,29 @@ impl Camera {
                     Ok(_f) => _f,
                     Err(e) => panic!("failed to flush file buffer: {}", e),
                 }
+
+                // Calculate the percentage of completion for the current scanline.
+                let completed_scanlines = j as f64;
+                let scanline_percentage = (completed_scanlines / total_scanlines as f64) * 100.0;
+
+                // Calculate the percentage of completion for the current pixel within the scanline.
+                let completed_pixels = i as f64;
+                let pixel_percentage = (completed_pixels / self.image_width as f64) * 100.0;
+
+                // Create the progress bars.
+                let scanline_progress_bar =
+                    "∻".repeat((scanline_percentage / 100.0 * 50.0) as usize);
+                let pixel_progress_bar = "≖".repeat((pixel_percentage / 100.0 * 50.0) as usize);
+
+                // Print the progress bars.
+                print!(
+                    "\rlines traced: {}/{} 『{}』 | scanline progress: {:.1}% «{}» ",
+                    completed_scanlines,
+                    total_scanlines,
+                    scanline_progress_bar,
+                    pixel_percentage,
+                    pixel_progress_bar,
+                );
             }
         }
 

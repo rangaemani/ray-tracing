@@ -1,9 +1,10 @@
+use std::cmp::min;
 use std::fmt;
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-use crate::rt_math::{random_number, random_number_in_range};
+use crate::math::rt_math::{random_number, random_number_in_range};
 
 pub type Point3 = Vec3;
 
@@ -21,6 +22,14 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
+    pub fn new() -> Self {
+        Vec3 {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        }
+    }
+
     /// Constructs a new `Vec3`.
     ///
     /// Parameters:
@@ -29,7 +38,7 @@ impl Vec3 {
     /// * `z`: z-coordinate (f64)
     ///
     /// Returns a `Vec3` instance.
-    pub fn new(x: f64, y: f64, z: f64) -> Vec3 {
+    pub fn from(x: f64, y: f64, z: f64) -> Vec3 {
         Vec3 { x, y, z }
     }
 
@@ -156,11 +165,11 @@ impl Vec3 {
     }
 
     pub fn random() -> Vec3 {
-        return Vec3::new(random_number(), random_number(), random_number());
+        return Vec3::from(random_number(), random_number(), random_number());
     }
 
     pub fn random_in_range(min: f64, max: f64) -> Vec3 {
-        return Vec3::new(
+        return Vec3::from(
             random_number_in_range(min, max),
             random_number_in_range(min, max),
             random_number_in_range(min, max),
@@ -174,6 +183,15 @@ impl Vec3 {
 
     pub fn reflect(vector: &Vec3, normal: &Vec3) -> Vec3 {
         return vector.clone() - 2.0 * dot(vector, normal) * normal.clone();
+    }
+
+    pub fn refract(vector: &Vec3, normal: &Vec3, refractivity_ratio: f64) -> Vec3 {
+        let cos_theta = f64::min(Self::dot(&vector.neg(), &normal), 1.0);
+        let ray_out_orthogonal: Vec3 =
+            refractivity_ratio * (vector.clone() + cos_theta * normal.clone());
+        let ray_out_parallel: Vec3 =
+            -((1.0 - ray_out_orthogonal.magnitude()).abs()).sqrt() * normal.clone();
+        return ray_out_orthogonal + ray_out_parallel;
     }
 }
 /// Calculates the dot product of two vectors. (Static Version)

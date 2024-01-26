@@ -1,11 +1,14 @@
 use std::ops::Neg;
 use std::sync::Arc;
 
-use crate::color::Color;
-use crate::interval::Interval;
-use crate::material::{self, Lambertian, Material};
-use crate::ray::Ray;
-use crate::vector::{dot, Point3, Vec3};
+use crate::materials;
+use crate::math::interval::Interval;
+use crate::vectors::{
+    color::Color,
+    ray::Ray,
+    vector::{dot, Point3, Vec3},
+};
+use materials::{dielectric::Dielectric, lambert::Lambertian, material::Material, metal::Metal};
 
 /// Stores the intersection data when a ray hits an object.
 #[derive(Clone)]
@@ -31,9 +34,9 @@ impl HitRecord {
     /// Creates a new `HitRecord` with default values.
     pub fn new() -> Self {
         HitRecord {
-            point: Point3::new(0.0, 0.0, 0.0),
-            normal: Vec3::new(0.0, 0.0, 0.0),
-            material: Arc::new(Lambertian::new(Color::new(0.0, 0.0, 0.0))),
+            point: Point3::new(),
+            normal: Vec3::new(),
+            material: Arc::new(Lambertian::new()),
             parameter: 0.0,
             ray_faces_outside: true,
         }

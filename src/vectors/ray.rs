@@ -24,6 +24,13 @@ impl Display for Ray {
 }
 
 impl Ray {
+    pub fn new() -> Self {
+        Ray {
+            origin: Vec3::new(),
+            direction: Vec3::new(),
+        }
+    }
+
     /// Constructs a new `Ray` with the given origin and direction.
     ///
     /// # Arguments
@@ -34,7 +41,7 @@ impl Ray {
     /// # Returns
     ///
     /// A new `Ray` instance.
-    pub fn new(origin: Point3, direction: Vec3) -> Ray {
+    pub fn from(origin: Point3, direction: Vec3) -> Ray {
         return Ray { origin, direction };
     }
 

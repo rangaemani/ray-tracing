@@ -145,20 +145,17 @@ impl Camera {
 
         self.center = self.camera_origin;
 
-        self.image_dimensions = (self.image_width, self.image_height);
-        self.image_dimensions = (self.image_width, self.image_height);
-        self.center = Point3::new();
         // Calculate viewport dimension
         let focal_length = (self.camera_origin - self.camera_target).length();
         let theta: f64 = degrees_to_radians(self.vfov);
         let height_component = f64::tan(theta / 2.0);
         let viewport_height = 2.0 * height_component * focal_length;
-        let viewport_width = viewport_height * self.aspect_ratio;
+        let viewport_width = viewport_height * self.image_width as f64 / self.image_height as f64;
 
         // Calculate basis vectors for camera coordinates
         self.w = (self.camera_origin - self.camera_target).normalize();
-        self.v = Vec3::cross(&self.up_vector, &self.w);
-        self.u = Vec3::cross(&self.w, &self.u);
+        self.u = Vec3::cross(&self.up_vector, &self.w).normalize();
+        self.v = Vec3::cross(&self.w, &self.u);
 
         // Calculate horizontal & vertical viewport edge vectors
         let viewport_u_vector = viewport_width * self.u;
@@ -173,7 +170,7 @@ impl Camera {
             - (focal_length * self.w)
             - viewport_u_vector / 2.0
             - viewport_v_vector / 2.0;
-        self.pixel_origin = viewport_origin + 0.5 * self.pixel_delta_u + 0.5 * self.pixel_delta_v;
+        self.pixel_origin = viewport_origin + 0.5 * (self.pixel_delta_u + self.pixel_delta_v);
     }
 
     /// Renders the scene described by `world` to a PPM file.

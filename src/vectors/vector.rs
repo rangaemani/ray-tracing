@@ -30,6 +30,14 @@ impl Vec3 {
         }
     }
 
+    pub fn from_rgb(x: usize, y: usize, z: usize) -> Vec3 {
+        Vec3 {
+            x: x as f64 / 255 as f64,
+            y: y as f64 / 255 as f64,
+            z: z as f64 / 255 as f64,
+        }
+    }
+
     /// Constructs a new `Vec3`.
     ///
     /// Parameters:
@@ -134,6 +142,19 @@ impl Vec3 {
             let vector: Vec3 = Vec3::random_in_range(-1.0, 1.0);
             if vector.magnitude() < 1.0 {
                 return vector.normalize();
+            }
+        }
+    }
+    /// Generates a random point inside the unit disk
+    pub fn random_unit_disk_point() -> Vec3 {
+        loop {
+            let point: Point3 = Point3::from(
+                random_number_in_range(-1.0, 1.0),
+                random_number_in_range(-1.0, 1.0),
+                0.0,
+            );
+            if point.magnitude() < 1.0 {
+                return point;
             }
         }
     }

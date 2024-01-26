@@ -13,7 +13,7 @@ use std::ops::Neg;
 ///
 /// This trait provides the method `scatter`, which is used to simulate
 /// the scattering of light as it interacts with the material of a surface.
-pub trait Material {
+pub trait Material: Send + Sync {
     /// Determines how an incoming ray (`ray_in`) is affected when it hits a surface.
     ///
     /// It sets the `attenuation` to describe how much the ray is dimmed and

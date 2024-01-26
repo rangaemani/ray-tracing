@@ -103,7 +103,7 @@ impl HitRecord {
 }
 
 /// Defines behavior for traceable objects.
-pub trait Traceable {
+pub trait Traceable: Send + Sync {
     /// Determines if a ray intersects the object and records intersection data.
     fn hit(&self, ray: &Ray, ray_parameter: Interval, record: &mut HitRecord) -> bool;
 }

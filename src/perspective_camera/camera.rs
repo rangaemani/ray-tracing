@@ -10,7 +10,10 @@ use crate::math::rt_math::{degrees_to_radians, random_number};
 use crate::ray::Ray;
 use crate::traceable::*;
 use crate::vector::{Point3, Vec3};
-
+use rayon::prelude::*;
+use std::io::{self};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 /// A camera in the scene responsible for rendering the view.
 pub struct Camera {
     /// The aspect ratio of the image (width over height).
@@ -25,22 +28,30 @@ pub struct Camera {
     pub max_depth: usize,
     /// Vertical FOV
     pub vfov: f64,
-    /// The height of the image in pixels.
-    image_height: usize,
-    /// The camera's position in space.
-    center: Point3,
+    /// Variation angle of rays going through each pixel
+    pub defocus_angle: f64,
+    /// Distance from camera origin point to plane of ideal focus
+    pub focus_distance: f64,
     /// Where camera is looking from
     pub camera_origin: Point3,
     /// What camera is looking at
     pub camera_target: Point3,
     /// Vector pointing up
     pub up_vector: Vec3,
+    /// The height of the image in pixels.
+    image_height: usize,
+    /// The camera's position in space.
+    center: Point3,
     /// The position of the pixel at coordinates (0,0) in space.
     pixel_origin: Point3,
     /// Displacement vector to the next pixel to the right.
     pixel_delta_u: Vec3,
     /// Displacement vector to the next pixel down.
     pixel_delta_v: Vec3,
+    /// Defocus disc horizontal radius
+    defocus_disc_u: Vec3,
+    /// Defocus disc vertical radius
+    defocus_disc_v: Vec3,
     /// Frame basis vectors
     u: Vec3,
     v: Vec3,
@@ -56,12 +67,16 @@ impl Camera {
             image_height: 0,
             image_dimensions: (0, 0),
             center: Point3::new(),
+            defocus_angle: 0.0,
+            focus_distance: 0.0,
             camera_origin: Point3::from(0.0, 0.0, -1.0),
             camera_target: Point3::from(0.0, 0.0, 0.0),
             up_vector: Vec3::from(0.0, 1.0, 0.0),
             pixel_origin: Point3::new(),
             pixel_delta_u: Vec3::new(),
             pixel_delta_v: Vec3::new(),
+            defocus_disc_u: Vec3::new(),
+            defocus_disc_v: Vec3::new(),
             pixel_samples: 10,
             max_depth: 10,
             vfov: 90.0,
@@ -126,9 +141,18 @@ impl Camera {
             self.pixel_origin + (i as f64 * self.pixel_delta_u) + (j as f64 * self.pixel_delta_v);
         let pixel_sample = pixel_center + self.pixel_sample_square();
 
-        let ray_origin = self.center;
+        let ray_origin = match self.defocus_angle <= 0.0 {
+            true => self.center,
+            _ => self.sample_defocus_disc(),
+        };
         let ray_direction = pixel_sample - ray_origin;
         return Ray::from(ray_origin, ray_direction);
+    }
+
+    fn sample_defocus_disc(&self) -> Point3 {
+        // return random point in camera defocus disk
+        let point: Point3 = Vec3::random_unit_disk_point();
+        return self.center + point.x() * self.defocus_disc_u + point.y() * self.defocus_disc_v;
     }
 
     fn pixel_sample_square(&self) -> Vec3 {
@@ -146,10 +170,9 @@ impl Camera {
         self.center = self.camera_origin;
 
         // Calculate viewport dimension
-        let focal_length = (self.camera_origin - self.camera_target).length();
         let theta: f64 = degrees_to_radians(self.vfov);
         let height_component = f64::tan(theta / 2.0);
-        let viewport_height = 2.0 * height_component * focal_length;
+        let viewport_height = 2.0 * height_component * self.focus_distance as f64;
         let viewport_width = viewport_height * self.image_width as f64 / self.image_height as f64;
 
         // Calculate basis vectors for camera coordinates
@@ -167,10 +190,15 @@ impl Camera {
 
         // Calculate location of origin pixel [top left (0, 0)]
         let viewport_origin = self.center
-            - (focal_length * self.w)
+            - (self.focus_distance as f64 * self.w)
             - viewport_u_vector / 2.0
             - viewport_v_vector / 2.0;
         self.pixel_origin = viewport_origin + 0.5 * (self.pixel_delta_u + self.pixel_delta_v);
+        // Calculate camera defocus disk basis vectors
+        let defocus_radius = self.focus_distance as f64
+            * f64::tan(degrees_to_radians(self.defocus_angle as f64 / 2.0));
+        self.defocus_disc_u = self.u * defocus_radius;
+        self.defocus_disc_v = self.v * defocus_radius;
     }
 
     /// Renders the scene described by `world` to a PPM file.
@@ -182,7 +210,8 @@ impl Camera {
     /// * `world` - A `Traceables` object containing the objects in the scene.
     ///
     /// After rendering, it outputs a file named `image.ppm` containing the result.
-    pub fn render(&mut self, world: Traceables) {
+
+    pub fn render(&mut self, world: Arc<Traceables>) {
         self.initialize();
 
         let mut file = File::create("image.ppm").expect("Could not create file `image.ppm`");
@@ -191,51 +220,51 @@ impl Camera {
             .expect("Failed to write PPM header to file");
 
         let total_scanlines = self.image_height;
+        let scanlines_done = Arc::new(AtomicUsize::new(0));
 
-        for j in 0..self.image_height {
-            for i in 0..self.image_width {
-                let mut pixel_color = Color::new();
-                for _sample in 0..self.pixel_samples {
-                    let ray: Ray = self.get_ray(i, j);
-                    pixel_color += Self::get_ray_color(&ray, self.max_depth, &world);
-                }
-                // Convert the pixel color to a string in PPM format.
-                let rgb_buffer = write_color(pixel_color, self.pixel_samples);
+        // Process each scanline in parallel
+        let pixels: Vec<_> = (0..self.image_height)
+            .into_par_iter()
+            .map(|j| {
+                let mut scanline_data = Vec::with_capacity(self.image_width);
 
-                // Write the color data for the current pixel to the PPM file.
-                match file.write_all(rgb_buffer.as_bytes()) {
-                    Ok(_t) => _t,
-                    Err(e) => panic!("failed to write to file: {}", e),
-                };
-
-                // Flush the file buffer after writing each pixel to ensure data is not lost.
-                match file.flush() {
-                    Ok(_f) => _f,
-                    Err(e) => panic!("failed to flush file buffer: {}", e),
+                for i in 0..self.image_width {
+                    let mut pixel_color = Color::new();
+                    for _sample in 0..self.pixel_samples {
+                        let ray: Ray = self.get_ray(i, j);
+                        pixel_color += Self::get_ray_color(&ray, self.max_depth, &world);
+                    }
+                    // Convert the pixel color to a string in PPM format.
+                    scanline_data.push(write_color(pixel_color, self.pixel_samples));
                 }
 
-                // Calculate the percentage of completion for the current scanline.
-                let completed_scanlines = j as f64;
-                let scanline_percentage = (completed_scanlines / total_scanlines as f64) * 100.0;
+                // Update progress
+                let completed_scanlines = scanlines_done.fetch_add(1, Ordering::SeqCst) + 1;
+                let scanline_percentage =
+                    (completed_scanlines as f64 / total_scanlines as f64) * 100.0;
 
-                // Calculate the percentage of completion for the current pixel within the scanline.
-                let completed_pixels = i as f64;
-                let pixel_percentage = (completed_pixels / self.image_width as f64) * 100.0;
-
-                // Create the progress bars.
+                // Create the progress bar.
                 let scanline_progress_bar =
                     "∻".repeat((scanline_percentage / 100.0 * 50.0) as usize);
-                let pixel_progress_bar = "≖".repeat((pixel_percentage / 100.0 * 50.0) as usize);
 
-                // Print the progress bars.
-                print!(
-                    "\rlines traced: {}/{} 『{}』 | scanline progress: {:.1}% «{}» ",
+                // Print the progress bar.
+                eprintln!(
+                    "\rｓｃａｎｌｉｎｅｓ　ｔｒａｃｅｄ: {}/{} 『{}』 {:.1}%",
                     completed_scanlines,
                     total_scanlines,
                     scanline_progress_bar,
-                    pixel_percentage,
-                    pixel_progress_bar,
+                    scanline_percentage,
                 );
+
+                scanline_data
+            })
+            .collect();
+
+        // Write all the pixel data to the file at once
+        for scanline in pixels {
+            for pixel in scanline {
+                file.write_all(pixel.as_bytes())
+                    .expect("Failed to write to file");
             }
         }
 

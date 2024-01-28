@@ -31,7 +31,7 @@ fn main() {
     // Setup World
     // The world consists of a ground sphere and a number of randomly placed spheres with different materials.
     let mut world: Traceables = Traceables::new();
-    let material_ground = Arc::new(Lambertian::from(Color::from(0.5, 0.5, 0.5)));
+    let material_ground = Arc::new(Lambertian::from(Color::from_rgb(127, 127, 127)));
     world.add(Arc::new(Sphere::from(
         Point3::from(0.0, -1000.0, -1.0),
         1000.0,
@@ -54,7 +54,7 @@ fn main() {
                 b as f64 + 0.9 * rand::random::<f64>(),
             );
 
-            if (center - Point3::from(4.0, 0.2, 0.0)).length() > 1.999 {
+            if (center - Point3::from(4.0, 0.2, 0.0)).length() > 0.9 {
                 let material: Arc<dyn Material>;
 
                 // Choose a material for the sphere based on a random number.

@@ -31,10 +31,10 @@ fn main() {
     // Setup World
     // The world consists of a ground sphere and a number of randomly placed spheres with different materials.
     let mut world: Traceables = Traceables::new();
-    let material_ground = Arc::new(Lambertian::from(Color::from_rgb(165, 255, 177)));
+    let material_ground = Arc::new(Lambertian::from(Color::from(0.5, 0.5, 0.5)));
     world.add(Arc::new(Sphere::from(
-        Point3::from(0.0, -100.5, -1.0),
-        100.0,
+        Point3::from(0.0, -1000.0, -1.0),
+        1000.0,
         material_ground,
     )));
 
@@ -44,44 +44,44 @@ fn main() {
     // Generate a grid of spheres with random positions and materials.
     // Each sphere is given a random radius and position within the grid cell.
     // The radius and position are chosen such that the spheres do not overlap.
-    (0..=20).into_par_iter().for_each(|_| {
-        for a in -11..11 {
-            for b in -11..11 {
-                let material_factor = rand::random::<f64>();
-                let center = Point3::from(
-                    a as f64 + 0.9 * rand::random::<f64>(),
-                    0.2,
-                    b as f64 + 0.9 * rand::random::<f64>(),
-                );
+    // (0..=20).into_par_iter().for_each(|_| {
+    (-11..11).into_par_iter().for_each(|a| {
+        (-11..11).into_par_iter().for_each(|b| {
+            let material_factor = rand::random::<f64>();
+            let center = Point3::from(
+                a as f64 + 0.9 * rand::random::<f64>(),
+                0.2,
+                b as f64 + 0.9 * rand::random::<f64>(),
+            );
 
-                if (center - Point3::from(4.0, 0.2, 0.0)).length() > 1.999 {
-                    let material: Arc<dyn Material>;
+            if (center - Point3::from(4.0, 0.2, 0.0)).length() > 1.999 {
+                let material: Arc<dyn Material>;
 
-                    // Choose a material for the sphere based on a random number.
-                    // The material can be diffuse, metal, or glass.
-                    if material_factor < 0.8 {
-                        // diffuse
-                        let albedo = Color::random() * Color::random();
-                        material = Arc::new(Lambertian::from(albedo));
-                    } else if material_factor < 0.95 {
-                        // metal
-                        let albedo = Color::random_in_range(0.5, 1.0);
-                        let fuzz = rand::random::<f64>() * 0.5;
-                        material = Arc::new(Metal::from(albedo, fuzz));
-                    } else {
-                        // glass
-                        material = Arc::new(Dielectric::from(1.5));
-                    }
-
-                    // Add the sphere to the world.
-                    world
-                        .lock()
-                        .unwrap()
-                        .add(Arc::new(Sphere::from(center, 0.2, material)));
+                // Choose a material for the sphere based on a random number.
+                // The material can be diffuse, metal, or glass.
+                if material_factor < 0.8 {
+                    // diffuse
+                    let albedo = Color::random() * Color::random();
+                    material = Arc::new(Lambertian::from(albedo));
+                } else if material_factor < 0.95 {
+                    // metal
+                    let albedo = Color::random_in_range(0.5, 1.0);
+                    let fuzz = rand::random::<f64>() * 0.5;
+                    material = Arc::new(Metal::from(albedo, fuzz));
+                } else {
+                    // glass
+                    material = Arc::new(Dielectric::from(1.5));
                 }
+
+                // Add the sphere to the world.
+                world
+                    .lock()
+                    .unwrap()
+                    .add(Arc::new(Sphere::from(center, 0.2, material)));
             }
-        }
+        });
     });
+    // });
 
     let material1 = Arc::new(Dielectric::from(1.5));
     world.lock().unwrap().add(Arc::new(Sphere::from(

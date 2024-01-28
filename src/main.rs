@@ -29,6 +29,7 @@ fn main() {
         std::fs::remove_file("image.ppm").unwrap();
     }
     // Setup World
+    // The world consists of a ground sphere and a number of randomly placed spheres with different materials.
     let mut world: Traceables = Traceables::new();
     let material_ground = Arc::new(Lambertian::from(Color::from_rgb(97, 255, 134)));
     world.add(Arc::new(Sphere::from(
@@ -37,8 +38,12 @@ fn main() {
         material_ground,
     )));
 
+    // Create a new, empty world for the randomly placed spheres.
     let world = Mutex::new(Traceables::new());
 
+    // Generate a grid of spheres with random positions and materials.
+    // Each sphere is given a random radius and position within the grid cell.
+    // The radius and position are chosen such that the spheres do not overlap.
     (0..=20).into_par_iter().for_each(|_| {
         for a in -11..11 {
             for b in -11..11 {
@@ -49,9 +54,11 @@ fn main() {
                     b as f64 + 0.9 * rand::random::<f64>(),
                 );
 
-                if (center - Point3::from(4.0, 0.2, 0.0)).length() > 0.9 {
+                if (center - Point3::from(4.0, 0.2, 0.0)).length() > 1.999 {
                     let material: Arc<dyn Material>;
 
+                    // Choose a material for the sphere based on a random number.
+                    // The material can be diffuse, metal, or glass.
                     if choose_mat < 0.8 {
                         // diffuse
                         let albedo = Color::random() * Color::random();
@@ -65,6 +72,8 @@ fn main() {
                         // glass
                         material = Arc::new(Dielectric::from(1.5));
                     }
+
+                    // Add the sphere to the world.
                     world
                         .lock()
                         .unwrap()
@@ -111,6 +120,7 @@ fn main() {
 
     camera.render(Arc::from(world.into_inner().unwrap()));
 
+    // REPLACE THIS WITH YOUR PREFERRED IMAGE VIEWING PROGRAM
     match Command::new("imageglass").arg("image.ppm").status() {
         Ok(status) => {
             if status.success() {

@@ -9,15 +9,19 @@ use crate::traceable::{Traceable, Traceables};
 use crate::vectors::*;
 use drawable::{sphere::Sphere, traceable::HitRecord};
 use materials::{dielectric::Dielectric, lambert::Lambertian, material::Material, metal::Metal};
+use math::rt_math::random_number_in_range;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::path::Path;
-use std::process::Command;
-use std::{env, f64::consts::PI, fs::File, io::prelude::*, sync::Arc, sync::Mutex};
+use std::{
+    path::Path,
+    process::Command,
+    {env, f64::consts::PI, fs::File, io::prelude::*, sync::Arc, sync::Mutex},
+};
 use vectors::{
     color::Color,
     ray::Ray,
     vector::{Point3, Vec3},
 };
+
 mod drawable;
 mod materials;
 mod math;
@@ -30,16 +34,15 @@ fn main() {
     }
     // Setup World
     // The world consists of a ground sphere and a number of randomly placed spheres with different materials.
-    let mut world: Traceables = Traceables::new();
+    let world = Mutex::new(Traceables::new());
     let material_ground = Arc::new(Lambertian::from(Color::from_rgb(127, 127, 127)));
-    world.add(Arc::new(Sphere::from(
+    world.lock().unwrap().add(Arc::new(Sphere::from(
         Point3::from(0.0, -1000.0, -1.0),
         1000.0,
         material_ground,
     )));
 
     // Create a new, empty world for the randomly placed spheres.
-    let world = Mutex::new(Traceables::new());
 
     // Generate a grid of spheres with random positions and materials.
     // Each sphere is given a random radius and position within the grid cell.
@@ -63,21 +66,34 @@ fn main() {
                     // diffuse
                     let albedo = Color::random() * Color::random();
                     material = Arc::new(Lambertian::from(albedo));
+                    let target_center =
+                        center + Vec3::from(0.0, random_number_in_range(0.0, 0.5), 0.0);
+                    // Add the sphere to the world.
+                    world.lock().unwrap().add(Arc::new(Sphere::new_in_motion(
+                        center,
+                        target_center,
+                        0.2,
+                        material,
+                    )));
                 } else if material_factor < 0.95 {
                     // metal
                     let albedo = Color::random_in_range(0.5, 1.0);
                     let fuzz = rand::random::<f64>() * 0.5;
                     material = Arc::new(Metal::from(albedo, fuzz));
+                    // Add the sphere to the world.
+                    world
+                        .lock()
+                        .unwrap()
+                        .add(Arc::new(Sphere::from(center, 0.2, material)));
                 } else {
                     // glass
                     material = Arc::new(Dielectric::from(1.5));
+                    // Add the sphere to the world.
+                    world
+                        .lock()
+                        .unwrap()
+                        .add(Arc::new(Sphere::from(center, 0.2, material)));
                 }
-
-                // Add the sphere to the world.
-                world
-                    .lock()
-                    .unwrap()
-                    .add(Arc::new(Sphere::from(center, 0.2, material)));
             }
         });
     });
@@ -105,10 +121,10 @@ fn main() {
     )));
 
     let mut camera = Camera::new();
-    camera.aspect_ratio = 3.0 / 2.0;
-    camera.image_width = 3840;
-    camera.pixel_samples = 500;
-    camera.max_depth = 50;
+    camera.aspect_ratio = 16.0 / 9.0;
+    camera.image_width = 1920;
+    camera.pixel_samples = 125;
+    camera.max_depth = 75;
 
     camera.vfov = 20.0;
     camera.camera_origin = Point3::from(13.0, 2.0, 3.0);

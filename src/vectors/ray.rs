@@ -11,6 +11,7 @@ use crate::vector::*;
 pub struct Ray {
     origin: Point3,  // origin coordinates
     direction: Vec3, // direction vector
+    time: f64,       // random sample time for interpolation
 }
 
 impl Display for Ray {
@@ -28,6 +29,7 @@ impl Ray {
         Ray {
             origin: Vec3::new(),
             direction: Vec3::new(),
+            time: 0.0,
         }
     }
 
@@ -41,8 +43,12 @@ impl Ray {
     /// # Returns
     ///
     /// A new `Ray` instance.
-    pub fn from(origin: Point3, direction: Vec3) -> Ray {
-        return Ray { origin, direction };
+    pub fn from(origin: Point3, direction: Vec3, time: f64) -> Ray {
+        return Ray {
+            origin,
+            direction,
+            time,
+        };
     }
 
     /// Returns the origin point of the ray.
@@ -74,5 +80,9 @@ impl Ray {
     /// The position of the point along the ray.
     pub fn at(&self, t: f64) -> Point3 {
         return self.origin + t * self.direction;
+    }
+
+    pub fn time(&self) -> f64 {
+        return self.time;
     }
 }

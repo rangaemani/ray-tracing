@@ -146,7 +146,9 @@ impl Camera {
             _ => self.sample_defocus_disc(),
         };
         let ray_direction = pixel_sample - ray_origin;
-        return Ray::from(ray_origin, ray_direction);
+
+        let ray_time: f64 = random_number();
+        return Ray::from(ray_origin, ray_direction, ray_time);
     }
 
     fn sample_defocus_disc(&self) -> Point3 {

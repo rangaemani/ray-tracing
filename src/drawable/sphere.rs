@@ -12,6 +12,8 @@ pub struct Sphere {
     center: Point3,
     radius: f64,
     material: Arc<dyn Material>,
+    in_motion: bool,
+    motion_blur_lerp_factor: Point3,
 }
 
 impl Sphere {
@@ -20,7 +22,24 @@ impl Sphere {
             center: Vec3::new(),
             radius: 0.0,
             material: Arc::from(Lambertian::new()),
+            in_motion: false,
+            motion_blur_lerp_factor: Point3::new(),
         }
+    }
+
+    pub fn new_in_motion(
+        center_start: Point3,
+        center_end: Point3,
+        radius: f64,
+        material: Arc<dyn Material>,
+    ) -> Sphere {
+        return Sphere {
+            center: center_start,
+            radius,
+            material,
+            in_motion: true,
+            motion_blur_lerp_factor: center_end - center_start,
+        };
     }
     /// Creates a new `Sphere` with a given `center` and `radius`.
     ///
@@ -37,6 +56,8 @@ impl Sphere {
             center,
             radius,
             material,
+            in_motion: false,
+            motion_blur_lerp_factor: Point3::new(),
         };
     }
 
@@ -46,8 +67,12 @@ impl Sphere {
     }
 
     /// Returns the center point of the sphere.
-    pub fn center(self) -> Point3 {
-        return self.center;
+    pub fn center(&self, time: f64) -> Point3 {
+        if self.in_motion {
+            return self.center + time * self.motion_blur_lerp_factor;
+        } else {
+            return self.center;
+        }
     }
 }
 
@@ -68,7 +93,11 @@ impl Traceable for Sphere {
     ///
     /// Returns `true` if the ray hits the sphere within the interval, `false` otherwise.
     fn hit(&self, ray: &Ray, ray_parameter: Interval, record: &mut HitRecord) -> bool {
-        let origin_vector: Vec3 = ray.origin() - self.center;
+        let center: Point3 = match self.in_motion {
+            true => self.center(ray.time()),
+            _ => self.center,
+        };
+        let origin_vector: Vec3 = ray.origin() - center;
         let a = ray.direction().magnitude();
         let half_b = dot(&origin_vector, &ray.direction());
         let c = (origin_vector.dot(&origin_vector)) - (self.radius * self.radius);

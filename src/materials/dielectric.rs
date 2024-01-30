@@ -49,7 +49,7 @@ impl Material for Dielectric {
         } else {
             direction = Vec3::refract(&ray_in_unit_direction, &record.normal(), refraction_ratio);
         }
-        *scattered = Ray::from(record.point(), direction);
+        *scattered = Ray::from(record.point(), direction, ray_in.time());
         return true;
     }
 }

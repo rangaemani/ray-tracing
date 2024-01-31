@@ -29,8 +29,8 @@ mod perspective_camera;
 mod vectors;
 
 fn main() {
-    if Path::exists(&Path::new("image.ppm")) {
-        std::fs::remove_file("image.ppm").unwrap();
+    if Path::exists(&Path::new("images/image.ppm")) {
+        std::fs::remove_file("images/image.ppm").unwrap();
     }
     // Setup World
     // The world consists of a ground sphere and a number of randomly placed spheres with different materials.
@@ -137,7 +137,7 @@ fn main() {
     camera.render(Arc::from(world.into_inner().unwrap()));
 
     // REPLACE THIS WITH YOUR PREFERRED IMAGE VIEWING PROGRAM
-    match Command::new("imageglass").arg("image.ppm").status() {
+    match Command::new("imageglass").arg("images/image.ppm").status() {
         Ok(status) => {
             if status.success() {
                 println!("Image opened successfully!");

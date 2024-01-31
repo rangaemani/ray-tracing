@@ -216,7 +216,7 @@ impl Camera {
     pub fn render(&mut self, world: Arc<Traceables>) {
         self.initialize();
 
-        let mut file = File::create("image.ppm").expect("Could not create file `image.ppm`");
+        let mut file = File::create("images/image.ppm").expect("Could not create file `image.ppm`");
 
         writeln!(file, "P3\n{} {}\n255", self.image_width, self.image_height)
             .expect("Failed to write PPM header to file");

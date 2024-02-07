@@ -35,7 +35,7 @@ fn main() {
     // Setup World
     // The world consists of a ground sphere and a number of randomly placed spheres with different materials.
     let world = Mutex::new(Traceables::new());
-    let material_ground = Arc::new(Lambertian::from(Color::from_rgb(127, 127, 127)));
+    let material_ground = Arc::new(Lambertian::from(Color::from_rgb(255, 120, 100)));
     world.lock().unwrap().add(Arc::new(Sphere::from(
         Point3::from(0.0, -1000.0, -1.0),
         1000.0,
@@ -48,8 +48,8 @@ fn main() {
     // Each sphere is given a random radius and position within the grid cell.
     // The radius and position are chosen such that the spheres do not overlap.
     // (0..=20).into_par_iter().for_each(|_| {
-    (-11..11).into_par_iter().for_each(|a| {
-        (-11..11).into_par_iter().for_each(|b| {
+    (-22..22).into_par_iter().for_each(|a| {
+        (-22..22).into_par_iter().for_each(|b| {
             let material_factor = rand::random::<f64>();
             let center = Point3::from(
                 a as f64 + 0.9 * rand::random::<f64>(),
@@ -62,7 +62,7 @@ fn main() {
 
                 // Choose a material for the sphere based on a random number.
                 // The material can be diffuse, metal, or glass.
-                if material_factor < 0.8 {
+                if material_factor < 0.4 {
                     // diffuse
                     let albedo = Color::random() * Color::random();
                     material = Arc::new(Lambertian::from(albedo));
@@ -75,19 +75,19 @@ fn main() {
                         0.2,
                         material,
                     )));
-                } else if material_factor < 0.95 {
-                    // metal
-                    let albedo = Color::random_in_range(0.5, 1.0);
-                    let fuzz = rand::random::<f64>() * 0.5;
-                    material = Arc::new(Metal::from(albedo, fuzz));
-                    // Add the sphere to the world.
-                    world
-                        .lock()
-                        .unwrap()
-                        .add(Arc::new(Sphere::from(center, 0.2, material)));
+                // } else if material_factor < 0.95 {
+                //     // metal
+                //     let albedo = Color::random_in_range(0.5, 1.0);
+                //     let fuzz = rand::random::<f64>() * 0.5;
+                //     material = Arc::new(Metal::from(albedo, fuzz));
+                //     // Add the sphere to the world.
+                //     world
+                //         .lock()
+                //         .unwrap()
+                //         .add(Arc::new(Sphere::from(center, 0.2, material)));
                 } else {
                     // glass
-                    material = Arc::new(Dielectric::from(1.5));
+                    material = Arc::new(Dielectric::from(random_number_in_range(0.5, 10.0)));
                     // Add the sphere to the world.
                     world
                         .lock()
@@ -99,34 +99,34 @@ fn main() {
     });
     // });
 
-    let material1 = Arc::new(Dielectric::from(1.5));
+    let material1 = Arc::new(Dielectric::from(25.0));
     world.lock().unwrap().add(Arc::new(Sphere::from(
-        Point3::from(0.0, 1.0, 0.0),
-        1.0,
+        Point3::from(4.0, 1.0, 1.0),
+        5.0,
         material1,
     )));
 
-    let material2 = Arc::new(Lambertian::from(Color::from(0.4, 0.2, 0.1)));
-    world.lock().unwrap().add(Arc::new(Sphere::from(
-        Point3::from(-4.0, 1.0, 0.0),
-        1.0,
-        material2,
-    )));
+    // let material2 = Arc::new(Lambertian::from(Color::from(0.4, 0.2, 0.1)));
+    // world.lock().unwrap().add(Arc::new(Sphere::from(
+    //     Point3::from(-4.0, 1.0, 0.0),
+    //     1.0,
+    //     material2,
+    // )));
 
-    let material3 = Arc::new(Metal::from(Color::from(0.7, 0.6, 0.5), 0.0));
-    world.lock().unwrap().add(Arc::new(Sphere::from(
-        Point3::from(4.0, 1.0, 0.0),
-        1.0,
-        material3,
-    )));
+    // let material3 = Arc::new(Metal::from(Color::from(0.7, 0.6, 0.5), 0.0));
+    // world.lock().unwrap().add(Arc::new(Sphere::from(
+    //     Point3::from(4.0, 1.0, 0.0),
+    //     1.0,
+    //     material3,
+    // )));
 
     let mut camera = Camera::new();
     camera.aspect_ratio = 16.0 / 9.0;
-    camera.image_width = 1920;
-    camera.pixel_samples = 125;
-    camera.max_depth = 75;
+    camera.image_width = 3840;
+    camera.pixel_samples = 1000;
+    camera.max_depth = 500;
 
-    camera.vfov = 20.0;
+    camera.vfov = 90.0;
     camera.camera_origin = Point3::from(13.0, 2.0, 3.0);
     camera.camera_target = Point3::from(0.0, 0.0, 0.0);
     camera.up_vector = Vec3::from(0.0, 1.0, 0.0);

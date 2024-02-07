@@ -15,7 +15,7 @@ This project is a ray tracing engine implemented in Rust. It uses a perspective 
 To run the project, simply execute the `main` function in `src/main.rs`. This will generate a PPM image of a scene composed of a large number of randomly placed spheres with different materials.
 
 
-![Rendered Image](images/motion_blur.png)
+![Rendered Image](images/glass_orb.png)
 
 The `main` function first checks if an image file already exists and removes it. It then sets up the world by creating a ground sphere and a number of randomly placed spheres with different materials. The camera settings are then configured, and the scene is rendered.
 
